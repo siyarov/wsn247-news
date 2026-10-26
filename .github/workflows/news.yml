@@ -1,0 +1,40 @@
+name: WSN 24/7 Sports News
+on:
+  schedule:
+    - cron: '7-59/10 * * * *'
+  push:
+    paths:
+      - bot.py
+      - requirements.txt
+      - .github/workflows/news.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: sports-news
+  cancel-in-progress: false
+jobs:
+  news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Send new headlines
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: '@wsn247'
+        run: python bot.py
+      - name: Save read articles
+        if: ${{ always() }}
+        run: |
+          if [ -n "$(git status --porcelain seen.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add seen.json
+            git commit -m "Update published sports stories [skip ci]"
+            git push
+          fi
